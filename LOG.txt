@@ -1,0 +1,141 @@
+# Nhật ký thay đổi LocalMind
+
+Nhật ký ghi lại các can thiệp đã thực hiện để tiện tiếp tục phát triển và tra cứu.
+
+## 2026-10-29 — Tự mở preview giao diện và đưa GitHub lên thanh trên
+
+- Yêu cầu tạo GUI/web/app/prototype sẽ tự tạo và mở workspace riêng, bật preview; hướng dẫn model dựng giao diện web bằng `index.html` (HTML/CSS/JavaScript) để người dùng nhìn thấy, thay vì trả code Tkinter mà web không thể hiển thị. Khi AI ghi `index.html`, Workspace tự chọn tệp và chuyển sang preview.
+- Thêm biểu tượng GitHub nhỏ trên thanh hội thoại, có dấu X đỏ khi chưa liên kết và dấu ✓ xanh khi đã liên kết; trạng thái kiểm tra lại khi đăng nhập, khi mở Workspace và định kỳ 30 giây.
+- Bấm biểu tượng mở GitHub login/device và Workspace để hiện mã liên kết; nếu chưa cấu hình GitHub App, giao diện báo rõ cần Admin nhập Client ID. Không chuyển token ra trình duyệt.
+- Bổ sung tool `workspace_github_status` và `workspace_github_sync` cho model khi có dự án Workspace. Tool chỉ đọc kết nối của user hiện tại hoặc xếp hàng đồng bộ repo của chính dự án/user đó; không tạo/xóa repo. Backend tiếp tục kiểm tra repo private trước khi ghi.
+- Tăng cache-busting CSS/JavaScript lên `20261029-7`; đồng bộ mã và tài liệu sang hai bản local backup/staging.
+- Theo yêu cầu tiếp theo, triển khai sáu tệp lên `/home/server/Desktop/LocalMind-webui` trên `172.16.16.10`, restart `localmind.service`, và xác nhận service active cùng `GET /` HTTP 200. Bản trước được giữ tại `/home/server/Desktop/LocalMind-webui.rollback-20261029-192801`; chưa kiểm tra OAuth GitHub hoặc sinh code bằng model thật.
+
+## 2026-10-29 — GitHub riêng theo tài khoản và tự đồng bộ workspace
+
+- Thêm cấu hình GitHub App Client ID trong Admin → Kết nối AI; đăng nhập thiết bị chạy qua backend, không yêu cầu Client Secret.
+- Chốt quyền GitHub App ở mức thấp hơn: Contents Read & write và Repository creation write; không cần Administration.
+- Thêm liên kết GitHub theo từng tài khoản LocalMind; cùng một GitHub login không được gắn đồng thời cho nhiều user LocalMind. Access/refresh token ở backend trong `data/github-tokens`, không gửi xuống browser, ghi log hay đưa vào chat.
+- Thêm tạo repository private riêng cho dự án, theo dõi trạng thái đồng bộ, bật/tắt tự đồng bộ và nút đồng bộ thủ công. File AI ghi vào workspace, editor lưu, và khôi phục phiên bản đều xếp hàng đồng bộ sau 2,5 giây yên lặng; GitHub nhận commit ở branch mặc định.
+- Trước mỗi lần đẩy, backend xác minh repo vẫn private và chặn đồng bộ nếu quyền riêng tư bị đổi sang public. Sau khi server restart, hàng đợi autosync đang dang dở được tiếp tục.
+- Ngắt tài khoản hoặc gỡ repo chỉ dừng LocalMind sync; không xóa dữ liệu repo trên GitHub. Thu hồi quyền ứng dụng hoàn toàn phải làm trong GitHub Settings → Applications. Repo được tạo là private cố định.
+- Cập nhật tài liệu thiết lập GitHub App, cache-busting CSS/JS lên `20261029-6`.
+- Chưa cấu hình Client ID hay chạy OAuth/API commit thật; chưa đóng gói hoặc chạm production. Cần Admin nhập Client ID của GitHub App đã bật Device Flow trước khi nối tài khoản.
+
+## 2026-10-29 — Workspace dự án v1.1
+
+- Thêm workspace dự án riêng theo từng tài khoản. Dữ liệu tệp và lịch sử phiên bản được xác thực quyền sở hữu ở backend; tài khoản khác không thể đọc hoặc sửa dự án.
+- Thêm panel cạnh khung chat: tạo/chọn/xóa dự án, tạo và sửa tệp, tự lưu sau khi ngừng gõ, xem lịch sử tối đa 30 phiên bản/tệp và khôi phục phiên bản.
+- Thêm preview cho `index.html` cùng CSS/JavaScript của dự án trong iframe sandbox. CSP chặn kết nối mạng, frame nhúng và object; preview không có quyền truy cập cookie/localStorage của LocalMind.
+- Khi workspace đang mở hoặc đã chọn dự án, LocalMind cung cấp tool nội bộ cho model để liệt kê, đọc, tạo và ghi tệp. Tool workspace do LocalMind thực thi, không phụ thuộc MCP và không bị công tắc MCP toàn cục chi phối.
+- Giới hạn dự án 20 MB, mỗi tệp 1 MB, tối đa 500 tệp; lịch sử được giới hạn 30 phiên bản/tệp, 100 phiên bản/dự án và 100 MB.
+- Thêm tải dự án về dạng ZIP; phần nối GitHub và tự đồng bộ đã được bổ sung ở mục tiếp theo.
+
+## 2026-10-29
+
+- Chẩn đoán lỗi điều khiển GUI: máy Kali có `kali-screen-mcp` hoạt động ở `172.16.16.11:8081` và chụp ảnh trả `image/png`; nhưng LocalMind production trước đó chỉ đăng ký MCP `CMD` ở cổng 8080 nên model chỉ thấy `execute_command` và thử mở Firefox trong shell không có quyền X11.
+- Kết nối MCP `DISPLAY` từ LocalMind tới `http://172.16.16.11:8081/mcp`, tự dò đủ 7 tool màn hình. Backend thêm chỉ dẫn chỉ dùng DISPLAY cho GUI. Kiểm chứng đường thật `MCP screenshot → LocalMind gateway → image_url → llama-server /input_tokens`; ảnh nhận đúng và model server đếm 506 input tokens.
+- Xác nhận model llama-server tạo tool call `mcp_98491cb4_get_screen_size` khi tắt suy luận; LocalMind gateway thực thi qua MCP và nhận kết quả `1920x1080`. Lượt thử đầu ở chế độ suy luận bật hết giới hạn token trước khi phát tool call, nên phép thử được chạy lại với suy luận tắt.
+- Giữ nguyên MCP terminal và không đổi dịch vụ shell. Xác nhận dịch vụ GUI đang dùng `DISPLAY=:0`, `XAUTHORITY=/var/run/lightdm/root/:0`; lỗi `no DISPLAY`/`cannot open display` trong ảnh phát sinh do gọi lệnh GUI bằng terminal MCP.
+- Xóa nhãn `BUIDUYET1.2 · Nội bộ` cạnh nút gửi để chừa vị trí cho nội dung tương lai.
+- Thêm dòng ping web server `172.16.16.10` dưới tên model trong thẻ trạng thái; trình duyệt đo thời gian phản hồi HTTP qua API nhẹ mỗi giây, tự hiển thị trạng thái mất kết nối. Đây là HTTP round-trip, không phải ICMP ping.
+- Xóa dấu ba chấm không có chức năng ở thẻ máy chủ; tăng phiên bản URL CSS/JavaScript để tải giao diện mới.
+- Thêm ghi chú dưới nút Đăng nhập với thông tin liên hệ Admin Bùi Văn Duyệt khi có thắc mắc hoặc sự cố; email và số điện thoại có thể bấm để gửi thư/gọi điện. Ghi chú chỉ xuất hiện ở màn đăng nhập, không xuất hiện trong luồng tạo Admin lần đầu.
+- Tăng phiên bản URL CSS/JavaScript để trình duyệt lấy giao diện đăng nhập đã cập nhật.
+
+## 2026-10-26
+
+- Thêm đồng bộ hội thoại giữa các thiết bị: API cập nhật chỉ trả tin mới và phần sinh hiện tại sau khi xác thực quyền sở hữu; trình duyệt tự nhận tin nhắn, phản hồi đang sinh và trạng thái cuối mà không cần tải lại trang.
+- Dựng Markdown trong lúc stream để tiêu đề, nhấn mạnh và khối code hiển thị đúng định dạng ngay khi sinh; thêm nút sao chép cho từng khối code và dòng bản quyền Bùi Văn Duyệt ở chân trang.
+- Sửa lỗi stream bị dồn cục: backend trước đó dùng `list.extend()` và đọc cạn luồng từ llama-server trước khi gửi các mảnh SSE; giờ chuyển tiếp iterator ngay khi mỗi mảnh đến.
+- Thêm chống cache cho API và tài nguyên tĩnh, đổi phiên bản URL CSS/JS để trình duyệt lấy bản giao diện mới; màn hình lỗi kết nối hiển thị thêm nguyên nhân cụ thể.
+- Bổ sung render Markdown an toàn cho phản hồi: tiêu đề, danh sách, in đậm/nghiêng, liên kết, trích dẫn và khối code; HTML thô vẫn hiển thị như văn bản.
+- Đổi luồng hiển thị câu trả lời sang hàng đợi ký tự để phát dần kể cả khi browser nhận một cụm SSE lớn; trạng thái suy luận/tool có thể mở xem theo dạng timeline.
+- Không hiển thị nguyên văn suy nghĩ nội bộ; chỉ hiển thị trạng thái xử lý, chế độ suy luận và các hoạt động tool có thể kiểm chứng.
+
+## 2026-10-25
+
+- Nối MCP Streamable HTTP qua backend LocalMind: Admin nhập URL nội bộ, backend handshake/dò tool, làm mới/xóa server; tool schema được gửi cùng chat completion và tool call được chuyển đến MCP server từ backend.
+- Bổ sung global Tools kill switch lưu tức thì. Backend kiểm tra DB ngay trước từng MCP dispatch; tắt quyền ngăn lượt gọi mới cho mọi tài khoản và đóng kết nối MCP đang mở khi có thể.
+- Cho phép endpoint HTTP chỉ trên IP private RFC1918/ULA để hạn chế SSRF; thêm giới hạn phản hồi MCP 16 MB và tối đa 500 tool được đăng ký.
+- Bỏ giới hạn số vòng và số tool call trong một lượt trả lời. Vòng tool tiếp tục tới khi model trả lời xong, người dùng dừng lượt chat hoặc Admin tắt Tools toàn cục.
+- Hỗ trợ Streamable HTTP revision `2026-07-28` và fallback handshake `2025-11-25`; README và trạng thái dự án đã cập nhật.
+- Chưa kiểm tra kết nối/tool call end-to-end với server MCP thật; cần kiểm tra model build hỗ trợ tool calling. Đóng socket không thể bảo đảm hủy tác vụ đã nhận ở server MCP.
+- Sửa lỗi stream chat: bỏ socket timeout 1 giây trên `urllib` buffered SSE reader (có thể làm reader lỗi sau timeout giữa frame) và ghi exception upstream cụ thể vào log để chẩn đoán mất kết nối.
+- Sửa truyền ảnh từ MCP: trước đây ảnh screenshot bị serialize thành JSON/base64 rồi cắt còn 20.000 ký tự, nên model không thể nhìn màn hình. Giờ gateway chuyển block image thành `image_url` multimodal trong tool result; tăng giới hạn phản hồi MCP lên 16 MB và giới hạn ảnh 10 MB.
+- Thêm hướng dẫn runtime để thao tác GUI bằng DISPLAY, xác nhận bằng screenshot sau thao tác và không nói thành công nếu tool chưa trả kết quả.
+- Thêm nhật ký Admin → MCP cho 40 tool call gần đây: tài khoản, tool/server, trạng thái, thời gian và loại lỗi; không lưu input arguments hay output nhạy cảm.
+- Sửa lỗi tool ảnh: template BUIDUYET1,2 đang chạy chỉ giữ phần `text` của tool result content array nên bỏ ảnh screenshot. Gateway giờ thêm ảnh vào thông điệp ảnh riêng sau nhóm tool results; chat hiện arguments, kết quả đã lọc và thumbnail ảnh nhỏ.
+- Chẩn đoán trực tiếp MCP DISPLAY: `tools/list`, `get_screen_size`, `move_pointer` và `screenshot` đều trả thành công. Screenshot desktop X11 trên máy `172.16.16.11` cho thấy màn Kali trống, không có Firefox. `/props` của llama-server hiện báo `supports_tools=true` và `supports_tool_calls=true`.
+- Chưa kiểm chứng round-trip tool-call qua model sau sửa; server compatibility/template vẫn có thể ảnh hưởng.
+- Làm mượt SSE: gom cập nhật chữ theo animation frame, tránh layout/cuộn lại sau từng token và giữ vị trí đọc nếu người dùng cuộn lên.
+- Thêm tiến độ suy luận dạng trạng thái và số token ước tính; không hiển thị nguyên văn reasoning nội bộ. Hiển thị tên tool và arguments trong chi tiết có thể mở, đồng thời che trường mật khẩu/token/secret/key.
+- Thêm vòng đo token cạnh nút suy luận: dùng endpoint đếm input_tokens, context window từ `/props`, usage/timing cuối stream và tốc độ live ước tính; đồng hồ cập nhật theo cuộc trò chuyện đang mở.
+
+- Tạo ứng dụng chat web LocalMind chạy bằng Python standard library, kết nối llama.cpp API, giao diện responsive cho desktop/điện thoại.
+- Thêm đăng nhập, khởi tạo Admin lần đầu, phân quyền Admin/User, lưu hội thoại và tin nhắn trong SQLite; Admin quản lý tài khoản, cài đặt và lịch sử hội thoại.
+- Thêm gửi/dừng phản hồi stream, đính kèm ảnh, tìm kiếm/đổi tên/xóa/xuất hội thoại, đánh giá và thử tạo lại câu trả lời.
+- Giữ nút chế độ suy luận Tắt/Trung bình/Ultra; ánh xạ lần lượt sang tắt suy luận, ngân sách 5.000 token và không giới hạn.
+- Nối nút dừng với endpoint hủy ở server, lưu phần phản hồi đã sinh thành trạng thái dở dang.
+- Tài khoản trên bản xem trước cục bộ được đổi thành `admin` với mật khẩu do người dùng cung cấp; mật khẩu chỉ nằm dưới dạng hash trong SQLite, không ghi vào source hay nhật ký.
+- Bản ZIP từng được tạo theo yêu cầu đóng gói trước đó. Sau chỉ dẫn ngày 2026-10-25, chưa tạo/cập nhật gói mới cho đến khi người dùng yêu cầu rõ “đóng gói”.
+
+## Khảo sát và yêu cầu ban đầu về memory - 2026-10-25
+
+- Lịch sử hiện được cách ly theo tài khoản thông qua `conversations.user_id`; message gắn với conversation và chỉ lịch sử của conversation đang hoạt động được gửi lên model.
+- Tại thời điểm khảo sát, chưa có bảng, API hay giao diện memory dài hạn theo tài khoản.
+- Hướng triển khai khả thi: bảng `user_memories` với `user_id` làm khóa ngoại, nội dung memory, nguồn/thời điểm tạo-cập nhật và trạng thái; lấy memory của user đang đăng nhập để thêm vào system context trước message history.
+- Cần giao diện để user xem, sửa, xóa memory và bật/tắt sử dụng memory. Admin không nên mặc định đọc memory cá nhân; thao tác API phải ràng buộc user_id theo session.
+- Trước khi triển khai cần chốt cách tạo memory (tự động trích xuất sau chat, user lưu thủ công, hoặc kết hợp), quyền duyệt/xóa, giới hạn độ dài/token và hành vi khi memory xung đột hoặc hết context.
+- Quyết định sản phẩm đã chốt: tự động thu thập và lưu memory, ưu tiên thông tin user chủ động yêu cầu ghi nhớ; Admin có toàn quyền với memory của mọi tài khoản.
+
+## Triển khai memory theo tài khoản - 2026-10-25
+
+- Thêm bảng `user_memories` liên kết một-một với user; dữ liệu tự xóa theo tài khoản khi user bị xóa.
+- Sau mỗi câu trả lời hoàn tất, chạy tác vụ nền gọi llama.cpp để trích xuất tối đa 30 memory ngắn; system prompt ưu tiên yêu cầu ghi nhớ rõ ràng và loại trừ mật khẩu/khóa bí mật/dữ liệu nhạy cảm.
+- Ghép memory riêng của tài khoản hiện tại vào system context của các lượt chat tiếp theo.
+- Thêm menu “Memory của tôi” để user xem, sửa và xóa memory của chính mình.
+- Thêm mục Quản trị → Memory để Admin xem, sửa và xóa memory của mọi tài khoản.
+- API kiểm tra user theo session và Admin theo vai trò; giới hạn memory tối đa 30 mục, 300 ký tự mỗi mục.
+- Cập nhật README về cơ chế trích xuất nền và khả năng tạo thêm tải GPU do request phụ.
+- Chưa tạo hoặc cập nhật gói ZIP theo yêu cầu; chưa triển khai lên máy chủ AI.
+
+## Thiết lập AI toàn hệ thống - 2026-10-25
+
+- Thêm tab Admin → AI hệ thống: hiển thị model ID thật từ llama.cpp, cho Admin đặt tên hiển thị riêng, chọn Auto hoặc một trong 24 ngôn ngữ, sửa system prompt áp dụng toàn bộ tài khoản.
+- Backend thêm system prompt và chỉ thị ngôn ngữ thành system message cho mỗi lượt chat; tên hiển thị không thay đổi model GGUF/model ID.
+- Thêm tool registry SQLite và giao diện Admin để tạo/sửa/xóa tool, gán MCP server/mô tả/input schema, bật/tắt quyền.
+- Tool registry hiện chỉ là khai báo quyền; không gửi tool vào model và không thực thi MCP. Tool `remote_execute_command` chạy shell root tạm thời trên llama-server không được tự động nhập hoặc cấp quyền.
+- Chốt kiến trúc cho giai đoạn MCP sau: kết nối MCP qua web gateway, chỉ expose tool được Admin allowlist; tránh kết nối trực tiếp cho client user.
+- User thường không truy cập tab AI hệ thống hoặc endpoint quản trị; API AI settings và tool registry yêu cầu Admin.
+- Chưa đóng gói hoặc cập nhật ZIP; chưa triển khai lên máy chủ AI.
+
+## Tách quyền Tools và MCP thành tab riêng - 2026-10-25
+
+- Theo yêu cầu mới, bỏ công tắc bật/tắt từng tool trong MCP registry.
+- Thêm tab Tools với một công tắc global `ai_tools_enabled`, áp dụng chung cho mọi model/tài khoản; mặc định tắt.
+- Chuyển khai báo MCP/tool sang tab MCP riêng; giữ tạo/sửa/xóa tên, server, mô tả và input schema.
+- Tool registry không có quyền riêng từng dòng; quyền model được điều khiển bằng công tắc toàn cục.
+- Công tắc hiện chỉ lưu trạng thái cấu hình vì MCP gateway chưa thực thi; UI nói rõ trạng thái này. Không kích hoạt tool root đang chạy trực tiếp ở llama-server.
+- Chưa đóng gói; chưa triển khai lên máy AI.
+
+## Bố trí lại công tắc Tools - 2026-10-25
+
+- Chuyển công tắc Tools khỏi tab độc lập vào trong tab AI hệ thống, cùng vùng tên model/ngôn ngữ/system prompt để giữ layout cho các mục quản trị sau.
+- Bỏ tab Tools riêng; giữ tab MCP riêng cho khai báo MCP/tool.
+- Công tắc vẫn lưu thiết lập toàn cục và gửi cùng form AI settings.
+
+## Sửa nhầm phạm vi launcher - 2026-10-25
+
+- Gỡ `run-llama-mcp-test.sh` khỏi source web và xóa phần hướng dẫn liên quan trong README; launcher model thuộc cấu hình máy chủ AI, tách biệt với code web.
+- Không sửa hoặc chạy lệnh trên máy AI; model chưa bị dừng hay nạp lại.
+
+## Bản chốt trạng thái hiện tại - 2026-10-25
+
+- Tài liệu handoff toàn diện được ghi tại [PROJECT_STATUS.md](PROJECT_STATUS.md); dùng tài liệu này làm mô tả hiện hành nếu các mục lịch sử phía trên phản ánh trạng thái trung gian.
+- Layout hiện tại: Admin → AI hệ thống chứa tên hiển thị, ngôn ngữ, system prompt và công tắc Tools toàn cục; Admin → MCP là tab riêng cho tool declarations.
+- Memory theo user, giao diện user/admin, chat stream và phân quyền đã nằm trong source hiện tại.
+- MCP gateway/execution chưa triển khai; công tắc global hiện lưu trong DB preview nhưng chưa ảnh hưởng tới khả năng gọi tool của model.
+- Preview local chạy trên 8010; dữ liệu test local giữ ngoài source trong `work/localmind-devdata`; app chưa cài lên máy AI.
+- Lệnh llama-server tối giản chỉ được trả lời trong chat, không phải một phần của web project; không restart AI server.
+- Không cập nhật hoặc dùng ZIP cũ cho deploy; chờ chỉ dẫn rõ ràng “đóng gói”.
