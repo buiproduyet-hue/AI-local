@@ -1,0 +1,115 @@
+# LocalMind — trạng thái bàn giao
+
+Cập nhật gần nhất: 2026-10-29. Đây là bản tóm tắt hiện trạng để tiếp tục phát triển ở phiên sau.
+
+### Cập nhật tiếp theo — Workspace preview và GitHub trên header (2026-10-29)
+
+- Yêu cầu tạo GUI/web/app/prototype sẽ tự mở workspace riêng cho lượt đó, bật preview và yêu cầu model tạo trang HTML/CSS/JS trong `index.html`. Preview tự chuyển sang xem `index.html` khi AI lưu tệp; GUI Tkinter/native vẫn không thể chạy trong preview web.
+- Header có biểu tượng GitHub nhỏ, dấu trạng thái ✓/× theo kết quả `/api/github/status`, cập nhật lúc đăng nhập/mở Workspace và mỗi 30 giây. Nhấn icon mở GitHub login/device cùng Workspace; Client ID chưa cấu hình được báo rõ thay vì nút không phản hồi.
+- Model có thêm `workspace_github_status` và `workspace_github_sync` khi có dự án được chọn. Chúng bị giới hạn vào user và dự án đang đăng nhập/chọn; không có quyền tạo/xóa repo. Tệp AI ghi vẫn dùng cơ chế autosync sẵn có.
+- CSS/JavaScript cache-busting hiện là `20261029-7`. Python/JavaScript đã qua kiểm tra cú pháp; source, local backup và staging khớp hash. Theo yêu cầu, sáu tệp đã được triển khai tới `172.16.16.10:/home/server/Desktop/LocalMind-webui`; `localmind.service` active và `GET /` trả 200. Bản trước giữ tại `/home/server/Desktop/LocalMind-webui.rollback-20261029-192801`. Chưa xác minh luồng OAuth GitHub hoặc generation/preview bằng model thật; cần người dùng hard-refresh rồi thử trên web.
+
+## Mục tiêu và vị trí
+
+- LocalMind là web chat nội bộ cho llama.cpp, phát triển trong `outputs/ai-chat-ui/`.
+- Stack hiện tại: HTML/CSS/JavaScript thuần, Python standard library, SQLite; không cần npm hoặc package Python ngoài.
+- Bản preview phát triển chạy tại `http://127.0.0.1:8010` trên máy Windows này; DB preview nằm trong `work/localmind-devdata/localmind.sqlite3`.
+- Bản production LocalMind chạy tại `172.16.16.10:8091`; llama.cpp API chạy tại `172.16.16.10:8090`.
+- Chỉ tạo gói bàn giao/ZIP khi người dùng nói rõ “đóng gói”. Việc triển khai trực tiếp đã được người dùng yêu cầu riêng; ZIP cũ (nếu còn) vẫn không chứa chỉnh sửa mới nhất.
+
+### Workspace dự án v1.1 — 2026-10-29
+
+- Đã thêm backend và giao diện workspace theo tài khoản: tạo/chọn dự án, tạo/sửa tệp, tự lưu sau 1,2 giây ngừng gõ, tải dự án ZIP và xem/khôi phục phiên bản.
+- Các thao tác workspace của model chạy nội bộ trong LocalMind, tách khỏi MCP. Khi workspace mở hoặc đã chọn dự án, model có tool liệt kê/đọc/ghi tệp; event stream báo khi dự án/tệp thay đổi.
+- Mỗi request xác thực quyền sở hữu ở backend. Giới hạn: 20 MB/dự án, 1 MB/tệp, 500 tệp/dự án; tối đa 30 phiên bản/tệp, 100 phiên bản và 100 MB lịch sử/dự án.
+- Preview chạy trong iframe sandbox không có quyền truy cập cookie hay origin của LocalMind; CSP hạn chế kết nối mạng và nội dung nhúng. Preview hiện xử lý `index.html`, CSS liên kết và JavaScript cục bộ.
+- Backend Python và JavaScript đã qua kiểm tra cú pháp. Chưa chạy end-to-end với model thật.
+- GitHub riêng đã có trong source: mỗi LocalMind user liên kết GitHub riêng bằng Device Flow; cùng một GitHub login không thể liên kết đồng thời cho nhiều user. Token ở backend trong `data/github-tokens`, không trả về trình duyệt. Repo được tạo ở chế độ private; lưu tệp, AI ghi tệp và khôi phục phiên bản sẽ tự đồng bộ commit sau 2,5 giây yên lặng. Có nút đồng bộ thủ công, tắt tự đồng bộ, xem trạng thái/lỗi, ngắt account và gỡ repo khỏi dự án. Ngắt/gỡ không xóa repo từ xa.
+- Backend kiểm tra quyền riêng tư của repo trước từng lần sync, dừng nếu repo đã đổi sang public và khôi phục hàng đợi sync dang dở sau khi service khởi động lại.
+- Trước khi dùng GitHub, Admin phải tạo GitHub App, bật Device Flow, nhập Client ID vào Admin → Kết nối AI; quyền yêu cầu là Contents Read & write và Repository creation write, không cần Administration hoặc Client Secret. Chưa nhập Client ID hay xác nhận OAuth/API commit thật.
+- Chưa đóng gói hoặc triển khai bản này lên production theo yêu cầu trước đó. GitHub source chưa được chạy end-to-end; chỉ được kiểm tra tĩnh sau khi hoàn thiện.
+
+### Cập nhật production và điều khiển GUI — 2026-10-29
+
+- Kali chạy shell MCP `http://172.16.16.11:8080/mcp` và screen MCP `http://172.16.16.11:8081/mcp`. Cả hai systemd service đều đang active; GUI service dùng `DISPLAY=:0` và `XAUTHORITY=/var/run/lightdm/root/:0`.
+- Nguyên nhân các lần mở Firefox thất bại là LocalMind production chỉ đăng ký CMD MCP, nên model dùng terminal tool không có môi trường X11. Đã thêm MCP server `DISPLAY` vào database production; LocalMind tự dò 7 tool `get_screen_size`, `screenshot`, `click`, `move_pointer`, `type_text`, `press_key`, `scroll`.
+- Đã gọi `screenshot` qua LocalMind gateway, nhận một ảnh PNG và gửi ảnh vào endpoint đếm token của llama.cpp; endpoint nhận ảnh và trả `506` input tokens. Cũng đã buộc model gọi `get_screen_size`, sau đó gateway chạy MCP thật và nhận `1920x1080`. Chưa kiểm thử lượt sinh câu trả lời mô tả nội dung ảnh.
+- Backend tự thêm chỉ dẫn dành riêng cho GUI nếu MCP server có tên `DISPLAY`: dùng screen MCP thay cho CMD/shell, quan sát screenshot sau thao tác và chỉ báo thành công khi tool xác nhận.
+- Đã bỏ nhãn `BUIDUYET1.2 · Nội bộ` cạnh nút gửi để dành chỗ trống cho nội dung mới.
+
+## Những phần đã làm
+
+### Giao diện và chat
+
+- Giao diện tối, responsive cho desktop/điện thoại, sidebar lịch sử, khung nhập chat và các trạng thái kết nối/lỗi.
+- Đăng nhập, khởi tạo Admin lần đầu, phiên đăng nhập cookie HttpOnly/SameSite Strict.
+- User chỉ dùng hội thoại của mình; Admin quản lý user, vai trò, khóa/mở tài khoản, đặt lại mật khẩu, cài đặt và dữ liệu hội thoại.
+- Tạo chat, mở/tìm/đổi tên/xóa/xuất lịch sử; gửi phản hồi stream; dừng phản hồi và lưu phần trả lời dở dang; đính kèm ảnh; đánh giá/sao chép/thử lại.
+- Giữ nút suy luận Tắt/Trung bình/Ultra: gửi lần lượt `enable_thinking=false` và ngân sách reasoning `0`, `5000`, `-1`.
+
+### Workspace dự án
+
+- Mở nút **Workspace** cạnh khung chat để tạo/chọn một dự án riêng của tài khoản; có thể chuyển tệp và xem code song song với chat trên desktop.
+- Tạo tệp bằng nút **+ Tệp**; editor tự lưu sau 1,2 giây ngừng nhập. Nút **Lưu** ghi một mốc phiên bản thủ công; danh sách phiên bản hỗ trợ khôi phục và vẫn giữ nội dung hiện tại thành một phiên bản mới.
+- Chọn **Xem trước** để chạy `index.html` cùng stylesheet/script cục bộ trong iframe giới hạn quyền. Tải toàn dự án bằng nút mũi tên xuống.
+- Khi workspace mở hoặc có dự án đang chọn, model có tool workspace nội bộ. Mở panel và chọn dự án trước khi yêu cầu AI tạo hoặc chỉnh sửa sản phẩm để AI lưu các tệp vào dự án đó.
+- Chỉ lưu tệp văn bản. Giới hạn lưu trữ là 20 MB mỗi dự án, 1 MB mỗi tệp và 500 tệp; lịch sử tối đa 30 mốc mỗi tệp, 100 mốc/100 MB mỗi dự án.
+
+### Memory
+
+- Memory dài hạn nằm trong bảng SQLite `user_memories`, liên kết một-một với user.
+- Sau câu trả lời hoàn tất, worker nền gọi thêm một request tới model để rút memory; ưu tiên yêu cầu rõ ràng kiểu “hãy nhớ/ghi nhớ/lưu lại”.
+- Chỉ dùng lời user làm dữ kiện; hướng dẫn bỏ qua mật khẩu, khóa bí mật và thông tin nhạy cảm. Giới hạn 30 mục, 300 ký tự mỗi mục.
+- Memory của user được thêm vào context trong chat tiếp theo. User xem/sửa/xóa memory của mình; Admin xem/sửa/xóa memory của tất cả tài khoản.
+- Việc trích xuất cần một lần inference bổ sung, có thể tranh thời gian GPU với lượt chat kế tiếp. Chưa kiểm thử trích xuất memory bằng một lượt chat thật sau khi tích hợp.
+
+### Thiết lập AI và MCP
+
+- Admin → AI hệ thống hiển thị model ID thật từ llama.cpp, cho đặt tên hiển thị khác, chọn Auto hoặc 24 ngôn ngữ, cấu hình system prompt dùng chung.
+- Trong cùng tab AI hệ thống có công tắc Tools toàn cục, áp dụng cho mọi model và tài khoản. Preview hiện tại lưu `ai_tools_enabled=1` (đang bật).
+- Admin → MCP là tab riêng để nhập URL HTTP nội bộ, tự dò/refresh danh sách tool, hiển thị tool và xóa server.
+- Backend LocalMind đóng vai trò MCP Streamable HTTP gateway. Khi quyền global bật, tool definitions đi kèm request chat; model tool calls được thực thi từ backend trong LAN rồi kết quả quay lại model.
+- Công tắc toàn cục lưu ngay qua API riêng. Backend đọc lại DB trước mỗi lần tool dispatch; khi tắt sẽ chặn lượt gọi mới trên mọi tài khoản và đóng response MCP đang mở khi có thể.
+- URL MCP chỉ chấp nhận IP private IPv4 RFC1918 hoặc IPv6 ULA, HTTP và cổng chỉ định. Hỗ trợ protocol `2026-07-28` và fallback handshake `2025-11-25`.
+- Ngắt kết nối không thể hoàn tác tác vụ đã thực thi ở MCP server; server đích có thể tiếp tục tác vụ sau khi client ngắt.
+- Ảnh MCP được forward thành `image_url` multimodal; với BUIDUYET1.2 template đang chạy, ảnh trong tool-result content bị bỏ nên gateway chuyển ảnh thêm thành user message nội bộ sau các tool results. Giới hạn body MCP 16 MB và ảnh tổng cộng 10 MB.
+- Prompt runtime yêu cầu model dùng DISPLAY cho GUI, chụp trước/sau, chỉ báo thành công sau khi tool xác nhận. Admin → MCP hiển thị log cuối 40 lần gọi (không lưu arguments/output).
+- Không giới hạn số vòng gọi tool hoặc số tool call trong một lượt chat; lượt chạy tới khi model kết thúc, người dùng dừng hoặc Admin tắt Tools toàn cục.
+- Ảnh screenshot không còn chỉ nằm trong tool result: BUIDUYET1.2 chat template hiện tại chỉ ghép các phần `text` từ tool result content array, bỏ qua `image_url`. Gateway hiện đính kèm ảnh vào message riêng sau nhóm tool results để model thật sự nhận ảnh; chat hiển thị arguments, kết quả lọc và thumbnail.
+- SSE chat chuyển tiếp từng mảnh từ llama-server bằng iterator lười, tránh đọc hết câu trả lời rồi mới gửi xuống trình duyệt; Markdown được dựng trong lúc stream, khối code có nút sao chép riêng, và cuộn tự động ngừng theo người dùng khi họ kéo lên đọc.
+- Các máy đang mở cùng hội thoại đồng bộ tin nhắn mới, văn bản đang sinh và nội dung hoàn tất qua API polling có xác thực; không cần F5 để cập nhật.
+- Đồng hồ token cạnh nút suy luận đếm prompt qua `/v1/chat/completions/input_tokens`, lấy context size từ `/props`, hiển thị token còn lại và tốc độ live ước tính/tốc độ cuối theo timings.
+- Chat hiển thị tiến độ suy luận dạng trạng thái và bộ đếm ước tính, không đưa nguyên văn reasoning nội bộ vào giao diện. Tool call MCP có thể mở để xem tên và arguments đã che key/value nhạy cảm.
+- Xác nhận từ endpoint DISPLAY `172.16.16.11:8081`: `tools/list`, `get_screen_size` và `move_pointer` trả thành công; `screenshot` trả PNG 1920×1080. Ảnh kiểm tra cho thấy desktop Kali đang ở trạng thái trống, không có Firefox mở. Đây là desktop X11 của máy MCP, không phải desktop Windows chạy trình duyệt LocalMind.
+- Trước đây endpoint `/tools` trên llama-server từng trả `remote_execute_command`, mô tả chạy shell trên Kali với quyền root. Người dùng sau đó đổi launcher để llama-server chỉ nạp model/context và mở port, muốn chuyển MCP sang web gateway; endpoint `/tools` hiện chưa kiểm tra được (403 từ preview).
+
+## Trạng thái dữ liệu preview gần nhất
+
+- Tên hiển thị app: `BVDLOCAL`.
+- Tên AI: `BD1.1`.
+- Ngôn ngữ mặc định: Tiếng Việt (`vi`).
+- Tools global switch: DB preview gần nhất đang bật; có hiệu lực với tool runtime sau các thay đổi mới.
+- Địa chỉ llama API: `http://172.16.16.10:8090`.
+- Tài khoản Admin local có username `admin`; mật khẩu do người dùng cung cấp và chỉ lưu hash trong DB preview. Không ghi mật khẩu vào source, nhật ký hoặc tài liệu bàn giao.
+
+## Lệnh llama-server trao đổi trước đây
+
+- Người dùng yêu cầu bỏ các tinh chỉnh MTP/context/sampling để dừng model rồi nạp lại nhằm thử MCP.
+- Đề xuất cũ trong chat từng giữ `--mcp-servers-config`; yêu cầu mới hơn là để llama-server chỉ nạp model/context/port và kết nối MCP qua LocalMind. Không sửa lệnh hoặc chạy lại llama-server từ phiên này.
+- LocalMind gửi `tools`/`tool_calls` theo OpenAI-compatible API; llama.cpp cần template hỗ trợ tool calling. Tài liệu hiện hành của llama.cpp nêu tool calling trên `llama-server` cần Jinja; kiểm tra model template hoặc bật `--jinja` nếu không nhận tool calls.
+
+## Kiểm tra và việc còn lại
+
+- Python `py_compile` và JavaScript `node --check` đã chạy thành công sau các chỉnh sửa gần đây.
+- Preview UI đã được mở để xem tab AI hệ thống, công tắc Tools nằm trong tab đó và tab MCP riêng.
+- Chưa có automated test suite. Tool-call round trip model → LocalMind gateway → MCP DISPLAY đã xác nhận với `get_screen_size`; ảnh screenshot qua gateway được endpoint `/input_tokens` tiếp nhận. Chưa kiểm thử inference thị giác end-to-end có nội dung mô tả ảnh. llama-server hiện GET `/health`, `/props`, `/v1/models` trả 200 và `chat_template_caps.supports_tools`/`supports_tool_calls` là true.
+- Đã bỏ timeout đọc SSE 1 giây vì `urllib` buffered reader có thể bị lỗi sau timeout giữa frame; upstream disconnect giờ được ghi exception cụ thể vào stderr. Chưa chạy lượt chat thật để xác nhận hết lỗi.
+- Luồng runtime cần model server tương thích OpenAI tool calling; theo docs llama.cpp hiện hành thường cần Jinja/template tool-aware. Thêm MCP URL trong Admin → MCP, sau đó bật công tắc ở AI hệ thống.
+- Chưa đóng gói và chưa triển khai lên server thật.
+
+## Tài liệu liên quan
+
+- Nhật ký theo thay đổi: [CHANGELOG.md](CHANGELOG.md)
+- Cài đặt và vận hành: [README.md](README.md)
+- Mã backend: [server.py](server.py)
+- Frontend: [app.js](app.js), [index.html](index.html), [style.css](style.css)
