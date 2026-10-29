@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101114" />
+    <title>LocalMind — AI nội bộ</title>
+    <link rel="stylesheet" href="./style.css?v=20261029-7" />
+  </head>
+  <body>
+    <div class="app-shell" id="appShell" hidden>
+      <aside class="sidebar" id="sidebar">
+        <div class="brand-row">
+          <a class="brand" href="#" aria-label="LocalMind trang chủ">
+            <span class="brand-mark"><span></span><span></span><span></span></span>
+            <span>local<span class="brand-light">mind</span></span>
+          </a>
+          <button class="icon-button sidebar-collapse" aria-label="Thu gọn thanh bên" title="Thu gọn thanh bên">
+            <svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5zM9 4v16" /></svg>
+          </button>
+        </div>
+
+        <button class="new-chat" id="newChatButton"><span class="plus">+</span><span>Cuộc trò chuyện mới</span><kbd>Ctrl K</kbd></button>
+        <button class="search-button" id="searchButton"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></svg><span>Tìm kiếm</span><kbd>Ctrl F</kbd></button>
+
+        <div class="history">
+          <div class="section-label">Gần đây</div>
+          <div class="history-list" id="historyList"><div class="history-empty">Chưa có cuộc trò chuyện nào</div></div>
+        </div>
+
+        <div class="sidebar-bottom">
+          <div class="server-card">
+            <span class="preview-indicator" id="serverIndicator"></span>
+            <div><strong id="serverStatus">Đang kiểm tra máy chủ</strong><small id="serverModel">AI nội bộ</small><small class="server-ping" id="serverPing">Ping 172.16.16.10 · Đang kiểm tra…</small></div>
+          </div>
+          <button class="profile-row" id="profileButton">
+            <span class="avatar" id="profileAvatar">?</span>
+            <span class="profile-copy"><strong id="profileName">Tài khoản</strong><small id="profileRole">Đang đăng nhập</small></span>
+            <svg class="chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
+          </button>
+        </div>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button mobile-menu" aria-label="Mở thanh bên"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+            <div class="model-select"><span class="model-orb"><span></span></span><span class="model-name" id="modelName">Gemma 4 <span class="model-version">26B</span></span><svg class="down-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></div>
+            <span class="private-pill"><span class="lock-icon">⌑</span> Riêng tư</span>
+          </div>
+          <div class="topbar-right">
+            <button class="workspace-toggle" id="workspaceToggle" type="button" aria-expanded="false" aria-controls="workspacePanel"><span aria-hidden="true">⌘</span><span>Workspace</span></button>
+            <button class="github-topbar-button checking" id="githubTopbarButton" type="button" aria-label="Đang kiểm tra trạng thái GitHub" title="Đang kiểm tra trạng thái GitHub" disabled>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .9a11.1 11.1 0 0 0-3.51 21.63c.56.1.76-.24.76-.54v-2.1c-3.1.67-3.75-1.32-3.75-1.32-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.73 1.16 1.73 1.16 1 1.72 2.62 1.23 3.26.94.1-.73.39-1.23.71-1.51-2.48-.28-5.09-1.24-5.09-5.53 0-1.22.44-2.22 1.16-3-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.05 1.14a10.6 10.6 0 0 1 5.55 0c2.1-1.44 3.04-1.14 3.04-1.14.61 1.55.23 2.7.12 2.98.72.78 1.15 1.78 1.15 3.01 0 4.3-2.62 5.24-5.12 5.51.4.35.76 1.03.76 2.08v3.1c0 .3.2.65.77.54A11.1 11.1 0 0 0 12 .9Z"/></svg>
+              <span class="github-topbar-status" id="githubTopbarStatus" aria-hidden="true">…</span>
+            </button>
+            <button class="icon-button share-button" id="exportButton" aria-label="Xuất hội thoại" title="Xuất hội thoại"><svg viewBox="0 0 24 24"><path d="M12 15V3m-4 4 4-4 4 4"/><path d="M5 13v5.5A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V13"/></svg></button>
+            <button class="icon-button more-button" id="conversationMenuButton" aria-label="Tùy chọn hội thoại" title="Tùy chọn hội thoại"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
+          </div>
+        </header>
+
+        <section class="conversation" aria-label="Cuộc trò chuyện">
+          <div class="messages" id="messagesContainer">
+            <div class="date-divider"><span>Hôm nay</span></div>
+            <div class="welcome-state" id="welcomeState">
+              <div class="welcome-mark"><span class="brand-mark"><span></span><span></span><span></span></span></div>
+              <h1>Chào bạn, hôm nay mình giúp gì?</h1>
+              <p>AI chạy trong mạng nội bộ của bạn.</p>
+              <div class="suggestion-grid">
+                <button class="suggestion-card"><span>✦</span><strong>Viết và biên tập</strong><small>Soạn thảo, chỉnh sửa nội dung</small></button>
+                <button class="suggestion-card"><span>⌘</span><strong>Phân tích vấn đề</strong><small>Chia nhỏ và tìm hướng giải quyết</small></button>
+                <button class="suggestion-card"><span>⌁</span><strong>Hỗ trợ lập trình</strong><small>Đọc, giải thích và viết code</small></button>
+                <button class="suggestion-card"><span>◫</span><strong>Tóm tắt thông tin</strong><small>Rút gọn nội dung dài</small></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="composer-area">
+            <div class="composer">
+              <textarea rows="1" aria-label="Tin nhắn" placeholder="Nhắn tin cho LocalMind..."></textarea>
+              <div class="composer-toolbar">
+                <div class="composer-tools">
+              <button class="tool-button attach-button" id="attachButton" title="Đính kèm ảnh"><span class="attach-plus">+</span><span>Ảnh</span></button>
+              <input type="file" id="imageInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden />
+                  <span class="toolbar-separator"></span>
+                  <button class="mode-button" id="modeButton" aria-haspopup="listbox" aria-expanded="false">
+                    <span class="mode-spark">✳</span><span class="mode-label">Trung bình</span><span class="mode-budget">5.000 tok</span><svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg>
+                  </button>
+                  <div class="context-usage-wrap">
+                    <button class="context-meter" id="contextMeter" type="button" aria-label="Xem mức sử dụng ngữ cảnh" aria-expanded="false" title="Mức sử dụng ngữ cảnh">
+                      <svg viewBox="0 0 36 36" aria-hidden="true"><circle class="context-meter-bg" cx="18" cy="18" r="15"/><circle class="context-meter-fill" id="contextProgress" cx="18" cy="18" r="15"/></svg>
+                      <span id="contextShort">—</span>
+                    </button>
+                    <span class="generation-speed" id="generationSpeed" aria-live="polite">— tok/s</span>
+                    <div class="context-popover" id="contextPopover" role="status" hidden>
+                      <strong>Ngữ cảnh cuộc trò chuyện</strong>
+                      <div><span>Đã dùng</span><b id="contextUsed">Chưa có số liệu</b></div>
+                      <div><span>Giới hạn model</span><b id="contextLimit">Đang tải…</b></div>
+                      <div><span>Còn khả dụng</span><b id="contextRemaining">—</b></div>
+                      <small id="contextAccuracy">Số liệu do model server cung cấp.</small>
+                    </div>
+                  </div>
+                </div>
+                <div class="composer-actions">
+              <button class="send-button" id="sendButton" aria-label="Gửi tin nhắn" title="Gửi tin nhắn"><svg viewBox="0 0 24 24"><path d="M12 19V5m-7 7 7-7 7 7"/></svg></button>
+                </div>
+              </div>
+            </div>
+            <div class="composer-footnote"><span>AI có thể mắc lỗi. Hãy kiểm tra thông tin quan trọng.</span><span class="copyright-note">© Bản quyền thuộc về Bùi Văn Duyệt</span><span class="secure-note"><span>⌑</span> Dữ liệu nội bộ</span></div>
+          </div>
+        </section>
+      </main>
+      <aside class="workspace-panel" id="workspacePanel" aria-label="Workspace dự án" hidden>
+        <div class="workspace-header">
+          <div><span class="workspace-eyebrow">LOCALMIND WORKSPACE</span><h2>Dự án</h2></div>
+          <button class="icon-button" id="workspaceClose" type="button" aria-label="Đóng workspace" title="Đóng"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        </div>
+        <div class="workspace-project-row">
+          <select id="workspaceProjectSelect" aria-label="Chọn dự án"><option value="">Chọn hoặc tạo dự án</option></select>
+          <button class="workspace-new-button" id="workspaceNewProject" type="button" title="Tạo dự án">+</button>
+          <button class="workspace-download-button" id="workspaceDownload" type="button" disabled title="Tải dự án ZIP">↓</button>
+          <button class="workspace-delete-button" id="workspaceDelete" type="button" disabled title="Xóa dự án">×</button>
+        </div>
+        <section class="workspace-github-account" aria-label="Tài khoản GitHub">
+          <div class="workspace-github-heading"><div><strong>GitHub riêng</strong><small id="workspaceGithubAccountStatus">Đang kiểm tra kết nối…</small></div><button class="workspace-github-account-button" id="workspaceGithubConnect" type="button">Liên kết</button><button class="workspace-github-account-button" id="workspaceGithubDisconnect" type="button" hidden>Ngắt</button></div>
+          <p class="workspace-github-hint" id="workspaceGithubHint">Mỗi tài khoản LocalMind liên kết GitHub riêng; mã đăng nhập được nhập trực tiếp trên GitHub.</p>
+          <div class="workspace-github-device" id="workspaceGithubDevice" hidden><span>Mã đăng nhập</span><strong id="workspaceGithubCode"></strong><a id="workspaceGithubVerify" href="https://github.com/login/device" target="_blank" rel="noopener noreferrer">Mở trang GitHub để nhập mã</a><button id="workspaceGithubCancel" type="button">Đóng</button></div>
+        </section>
+        <div class="workspace-empty" id="workspaceEmpty"><span>⌘</span><strong>Workspace riêng của bạn</strong><p>Tạo dự án để AI lưu code thành tệp, xem trước kết quả và khôi phục các phiên bản trước.</p><button class="primary-button" id="workspaceEmptyCreate" type="button">Tạo dự án</button></div>
+        <div class="workspace-content" id="workspaceContent" hidden>
+          <section class="workspace-github-project" id="workspaceGithubProject" aria-label="Repo GitHub của dự án" hidden>
+            <div class="workspace-github-project-top"><div><strong>Repo dự án</strong><small id="workspaceGithubProjectStatus">Chưa có repo riêng tư</small></div><button id="workspaceGithubCreateRepo" type="button">Tạo repo riêng</button></div>
+            <a id="workspaceGithubRepoLink" href="#" target="_blank" rel="noopener noreferrer" hidden></a>
+            <div class="workspace-github-project-actions" id="workspaceGithubProjectActions" hidden><label><input id="workspaceGithubAutoSync" type="checkbox" checked /> Tự lưu lên GitHub</label><button id="workspaceGithubSync" type="button">Đồng bộ ngay</button><button id="workspaceGithubUnlink" type="button">Gỡ liên kết</button></div>
+          </section>
+          <div class="workspace-filebar">
+            <span>TỆP DỰ ÁN</span><button id="workspaceNewFile" type="button" title="Tạo tệp mới">+ Tệp</button>
+          </div>
+          <div class="workspace-file-list" id="workspaceFileList"></div>
+          <div class="workspace-editor-toolbar">
+            <span class="workspace-current-path" id="workspaceCurrentPath">Chọn một tệp</span>
+            <div class="workspace-actions">
+              <button id="workspaceHistory" type="button" disabled>Phiên bản</button>
+              <button id="workspacePreviewToggle" type="button" aria-pressed="false">Xem trước</button>
+              <button id="workspaceSave" type="button" disabled>Lưu</button>
+            </div>
+          </div>
+          <div class="workspace-editor-wrap" id="workspaceEditorWrap"><textarea id="workspaceEditor" aria-label="Nội dung tệp dự án" spellcheck="false" placeholder="Chọn tệp hoặc tạo tệp mới để bắt đầu." disabled></textarea></div>
+          <div class="workspace-preview-wrap" id="workspacePreviewWrap" hidden><iframe id="workspacePreview" title="Xem trước dự án" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe><div class="workspace-preview-note">Preview chạy trong iframe cô lập; quyền truy cập mạng và trang LocalMind bị giới hạn.</div></div>
+          <div class="workspace-version-row"><select id="workspaceVersionSelect" aria-label="Phiên bản đã lưu" disabled><option value="">Chọn phiên bản</option></select><button id="workspaceRestore" type="button" disabled>Khôi phục</button></div>
+          <div class="workspace-save-state" id="workspaceSaveState" role="status">Tự lưu đang bật</div>
+        </div>
+      </aside>
+    </div>
+    <script src="./app.js?v=20261029-7"></script>
+  </body>
+</html>
